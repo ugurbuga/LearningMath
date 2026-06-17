@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="114" fill="#F5F5F5"/>
+
+  <!-- Top Left: Addition (Orange) -->
+  <rect x="76" y="76" width="170" height="170" rx="48" fill="#FFB74D"/>
+  <rect x="156" y="118" width="10" height="86" rx="5" fill="white"/>
+  <rect x="118" y="156" width="86" height="10" rx="5" fill="white"/>
+
+  <!-- Top Right: Subtraction (Green) -->
+  <rect x="266" y="76" width="170" height="170" rx="48" fill="#81C784"/>
+  <rect x="308" y="156" width="86" height="10" rx="5" fill="white"/>
+
+  <!-- Bottom Left: Multiplication (Blue) -->
+  <rect x="76" y="266" width="170" height="170" rx="48" fill="#64B5F6"/>
+  <g transform="translate(161, 351) rotate(45)">
+    <rect x="-43" y="-5" width="86" height="10" rx="5" fill="white"/>
+    <rect x="-5" y="-43" width="10" height="86" rx="5" fill="white"/>
+  </g>
+
+  <!-- Bottom Right: Division (Purple) -->
+  <rect x="266" y="266" width="170" height="170" rx="48" fill="#BA68C8"/>
+  <rect x="308" y="346" width="86" height="10" rx="5" fill="white"/>
+  <circle cx="351" cy="311" r="10" fill="white"/>
+  <circle cx="351" cy="391" r="10" fill="white"/>
+</svg>
