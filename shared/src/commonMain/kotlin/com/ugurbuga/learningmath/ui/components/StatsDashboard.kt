@@ -14,10 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ugurbuga.learningmath.model.Operation
 import com.ugurbuga.learningmath.util.getCurrentDate
-import com.ugurbuga.learningmath.res.Strings
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun StatsDashboard(
@@ -46,7 +49,7 @@ fun StatsDashboard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = Strings.STATS_TITLE_TODAY,
+                    text = stringResource(Res.string.stats_title_today),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -70,10 +73,16 @@ fun StatsDashboard(
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
-                                .background(op.color, CircleShape),
+                                .background(op.color, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(op.symbol, color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = op.symbol,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
                         }
                         Text(
                             text = (dayStats[op] ?: 0).toString(),

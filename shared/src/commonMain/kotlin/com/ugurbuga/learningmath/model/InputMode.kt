@@ -1,8 +1,9 @@
 package com.ugurbuga.learningmath.model
 
-import com.ugurbuga.learningmath.res.Strings
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
 
-enum class InputMode(val title: String) {
-    DIRECT(Strings.DIRECT_MODE),
-    STEP_BY_STEP(Strings.STEP_BY_STEP_MODE)
+enum class InputMode(val titleRes: StringResource) {
+    DIRECT(Res.string.direct_mode),
+    STEP_BY_STEP(Res.string.step_by_step_mode)
 }
