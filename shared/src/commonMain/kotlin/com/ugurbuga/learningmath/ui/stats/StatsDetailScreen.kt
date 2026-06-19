@@ -23,7 +23,8 @@ import com.ugurbuga.learningmath.model.Operation
 import com.ugurbuga.learningmath.util.getCurrentDate
 import com.ugurbuga.learningmath.util.getDayOfWeekName
 import com.ugurbuga.learningmath.util.getMonthName
-import com.ugurbuga.learningmath.res.Strings
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.datetime.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,10 +38,10 @@ fun StatsDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(Strings.STATS_TITLE) },
+                title = { Text(stringResource(Res.string.stats_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Strings.BACK)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                     }
                 }
             )
@@ -97,7 +98,7 @@ fun StatItem(operation: Operation, count: Int) {
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = operation.title,
+                    text = stringResource(operation.titleRes),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -111,7 +112,7 @@ fun StatItem(operation: Operation, count: Int) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "çözüm",
+                    text = stringResource(Res.string.solutions_count),
                     style = MaterialTheme.typography.titleSmall,
                     color = operation.color.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 4.dp)

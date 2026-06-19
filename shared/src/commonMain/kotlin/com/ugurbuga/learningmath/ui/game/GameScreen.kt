@@ -5,9 +5,13 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,11 +26,17 @@ import com.ugurbuga.learningmath.model.InputMode
 import com.ugurbuga.learningmath.ui.components.ConfettiEffect
 import com.ugurbuga.learningmath.ui.components.CustomKeypad
 import com.ugurbuga.learningmath.ui.theme.LearningMathTheme
-import com.ugurbuga.learningmath.res.Strings
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.Preview
 import kotlin.random.Random
+
+// TODO: Set this to 30 for release
+private const val SHOW_SOLUTION_DELAY_SECONDS = 3
+private const val SOLUTION_STEP_DELAY_MS = 3000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,20 +47,34 @@ fun GameScreen(
     inputMode: InputMode,
     onInputModeChange: (InputMode) -> Unit
 ) {
-    var num1 by remember { 
-        mutableIntStateOf(when(operation) {
-            Operation.SUBTRACTION -> 10
-            Operation.DIVISION -> 4
-            else -> 5
-        })
+    val initialNumbers = remember(operation) {
+        when (operation) {
+            Operation.ADDITION -> {
+                val a = Random.nextInt(1, 50)
+                val b = Random.nextInt(1, 50)
+                maxOf(a, b) to minOf(a, b)
+            }
+            Operation.SUBTRACTION -> {
+                val a = Random.nextInt(1, 99)
+                var b = Random.nextInt(1, a + 1)
+                if (a == b && a > 1) b -= 1
+                maxOf(a, b) to minOf(a, b)
+            }
+            Operation.MULTIPLICATION -> {
+                val a = Random.nextInt(1, 10)
+                val b = Random.nextInt(1, 10)
+                maxOf(a, b) to minOf(a, b)
+            }
+            Operation.DIVISION -> {
+                val n2 = Random.nextInt(1, 6)
+                val factor = Random.nextInt(1, 5)
+                (n2 * factor) to n2
+            }
+        }
     }
-    var num2 by remember { 
-        mutableIntStateOf(when(operation) {
-            Operation.SUBTRACTION -> 5
-            Operation.DIVISION -> 2
-            else -> 3
-        })
-    }
+
+    var num1 by remember(operation) { mutableIntStateOf(initialNumbers.first) }
+    var num2 by remember(operation) { mutableIntStateOf(initialNumbers.second) }
     var userInput by remember { mutableStateOf("") }
     var isCorrect by remember { mutableStateOf<Boolean?>(null) }
     var showConfetti by remember { mutableStateOf(false) }
@@ -59,9 +83,11 @@ fun GameScreen(
     var questionTimer by remember { mutableIntStateOf(0) }
     var isShowingSolution by remember { mutableStateOf(false) }
     var solutionStep by remember { mutableIntStateOf(0) }
-    var solutionExplanation by remember { mutableStateOf("") }
+    val solutionExplanations = remember { mutableStateListOf<String>() }
+    var isSolutionFinished by remember { mutableStateOf(false) }
     val carries = remember { mutableStateMapOf<Int, Int>() }
     val borrows = remember { mutableStateMapOf<Int, Boolean>() }
+    val num1Overrides = remember { mutableStateMapOf<Int, String>() }
 
     val answerValue = remember(num1, num2, operation) {
         when (operation) {
@@ -87,14 +113,11 @@ fun GameScreen(
                 val b = Random.nextInt(1, a + 1)
                 num1 = maxOf(a, b)
                 num2 = minOf(a, b)
-                // Ensure num1 and num2 are not the same for 1st grade challenge if needed, 
-                // but usually num1 > num2 is better.
                 if (num1 == num2 && num1 > 1) num2 -= 1
             }
             Operation.MULTIPLICATION -> {
                 num1 = Random.nextInt(1, 10)
                 num2 = Random.nextInt(1, 10)
-                // Larger number on top
                 if (num2 > num1) {
                     val temp = num1
                     num1 = num2
@@ -112,10 +135,12 @@ fun GameScreen(
         showConfetti = false
         questionTimer = 0
         isShowingSolution = false
+        isSolutionFinished = false
         solutionStep = 0
-        solutionExplanation = ""
+        solutionExplanations.clear()
         carries.clear()
         borrows.clear()
+        num1Overrides.clear()
     }
 
     LaunchedEffect(num1, num2) {
@@ -128,10 +153,18 @@ fun GameScreen(
 
     suspend fun showStepByStepSolution() {
         isShowingSolution = true
+        isSolutionFinished = false
         userInput = ""
         solutionStep = 0
+        solutionExplanations.clear()
         carries.clear()
         borrows.clear()
+        num1Overrides.clear()
+
+        suspend fun addSolutionExplanation(text: String, holdMs: Long = SOLUTION_STEP_DELAY_MS) {
+            solutionExplanations.add(text)
+            delay(holdMs)
+        }
 
         val n1Str = num1.toString().reversed()
         val n2Str = num2.toString().reversed()
@@ -143,24 +176,28 @@ fun GameScreen(
                     solutionStep = i
                     val d1 = n1Str.getOrNull(i)?.digitToInt() ?: 0
                     val d2 = n2Str.getOrNull(i)?.digitToInt() ?: 0
-                    val sum = d1 + d2 + carry
-                    solutionExplanation = "$d1 + $d2" + (if (carry > 0) " + $carry (elde)" else "") + " = $sum"
-                    delay(2500)
                     
-                    val digit = sum % 10
-                    userInput += digit.toString()
-                    solutionExplanation += ". $digit sayısını kutuya yazıyoruz."
-                    delay(2000)
+                    val stepSum = d1 + d2
+                    addSolutionExplanation(getString(Res.string.solution_step_add, d1, d2, stepSum))
 
-                    carry = sum / 10
-                    if (carry > 0 && i + 1 < displayLength) {
-                        carries[i + 1] = carry
-                        solutionExplanation += " Elde var $carry, yana aktarıyoruz."
-                        delay(2000)
-                    } else if (carry > 0 && i + 1 == displayLength) {
-                        userInput += carry.toString()
-                        solutionExplanation += " En sona eldeyi ($carry) ekliyoruz."
-                        delay(2000)
+                    val totalSum = stepSum + carry
+                    if (carry > 0) {
+                        addSolutionExplanation(getString(Res.string.solution_carry_add, stepSum, carry, totalSum))
+                    }
+                    
+                    val digit = totalSum % 10
+                    userInput += digit.toString()
+                    addSolutionExplanation(getString(Res.string.solution_write_number, digit))
+
+                    carry = totalSum / 10
+                    if (carry > 0) {
+                        if (i + 1 < displayLength) {
+                            carries[i + 1] = carry
+                            addSolutionExplanation(getString(Res.string.solution_carry_next, carry))
+                        } else {
+                            userInput += carry.toString()
+                            addSolutionExplanation(getString(Res.string.solution_carry_final, carry))
+                        }
                     }
                 }
             }
@@ -172,63 +209,63 @@ fun GameScreen(
                     val d2 = n2Str.getOrNull(i)?.digitToInt() ?: 0
                     
                     if (d1 < d2) {
-                        solutionExplanation = "$d1'den $d2 çıkmaz. Komşudan bir onluk alıyoruz."
+                        addSolutionExplanation(getString(Res.string.solution_sub_not_enough, d1, d2))
                         borrows[i + 1] = true
-                        n1Digits[i+1] -= 1
+                        
+                        val neighborOriginal = n1Digits.getOrNull(i + 1) ?: 0
+                        if (i + 1 < n1Digits.size) {
+                            n1Digits[i+1] -= 1
+                            num1Overrides[i+1] = n1Digits[i+1].toString()
+                        }
+                        addSolutionExplanation(getString(Res.string.solution_borrow_neighbor, neighborOriginal, n1Digits.getOrElse(i + 1) { 0 }))
+                        
+                        val oldD1 = d1
                         d1 += 10
-                        delay(2500)
+                        num1Overrides[i] = d1.toString()
+                        addSolutionExplanation(getString(Res.string.solution_borrow_add, oldD1, d1))
                     }
                     
                     val diff = d1 - d2
-                    solutionExplanation = "$d1 - $d2 = $diff"
-                    delay(2500)
+                    addSolutionExplanation(getString(Res.string.solution_step_sub, d1, d2, diff))
                     userInput += diff.toString()
-                    delay(2000)
+                    addSolutionExplanation(getString(Res.string.solution_write_number, diff))
                 }
-                // Remove leading zeros from the final result if any
-                // Since it's reversed, they are at the end
                 while (userInput.length > 1 && userInput.endsWith("0")) {
                     userInput = userInput.dropLast(1)
                 }
             }
             Operation.MULTIPLICATION -> {
-                solutionExplanation = "$num1 x $num2 işlemi, $num1 tane $num2'yi toplamak demektir."
-                delay(3000)
+                addSolutionExplanation(getString(Res.string.solution_mul_explanation, num1, num2, num1, num2))
                 var currentSum = 0
                 val steps = mutableListOf<String>()
-                for (i in 1..num1) {
+                repeat(num1) {
                     currentSum += num2
                     steps.add(num2.toString())
-                    solutionExplanation = steps.joinToString(" + ") + " = $currentSum"
-                    if (i == num1) {
-                        userInput = currentSum.toString()
-                    }
-                    delay(2000)
+                    addSolutionExplanation("➜ " + steps.joinToString(" + ") + " = $currentSum")
+                    userInput = currentSum.toString().reversed()
                 }
             }
             Operation.DIVISION -> {
-                solutionExplanation = "$num1 ÷ $num2 işlemi, $num1'in içinde kaç tane $num2 olduğunu bulmaktır."
-                delay(3000)
+                addSolutionExplanation(getString(Res.string.solution_div_explanation, num1, num2, num1, num2))
                 var count = 0
                 var remaining = num1
                 val steps = mutableListOf<Int>()
                 while (remaining >= num2) {
                     count++
                     steps.add(num2 * count)
-                    solutionExplanation = "$num2'şer sayalım: " + steps.joinToString(", ")
-                    userInput = count.toString()
+                    addSolutionExplanation(getString(Res.string.solution_div_counting, num2, steps.joinToString(", ")))
+                    userInput = count.toString().reversed()
                     remaining -= num2
-                    delay(2000)
                 }
-                solutionExplanation += ". Tam $count tane var!"
-                delay(2000)
+                addSolutionExplanation(getString(Res.string.solution_div_result, count))
             }
         }
         
+        delay(1000)
+        addSolutionExplanation(getString(Res.string.solution_finished))
+        isSolutionFinished = true
         isCorrect = true
         showConfetti = true
-        // onCorrectAnswer(operation) // Don't count automated solutions
-        solutionExplanation = "İşte bu kadar! Harikasın! ✨"
     }
 
     val activeColumnIndex = remember(userInput, inputMode, isCorrect) {
@@ -265,10 +302,35 @@ fun GameScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text(operation.title) },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = stringResource(operation.titleRes),
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = operation.color
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = operation.symbol,
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = operation.color
+                                )
+                            )
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Strings.BACK)
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.back),
+                                tint = operation.color
+                            )
                         }
                     }
                 )
@@ -307,7 +369,7 @@ fun GameScreen(
                                     elevation = null
                                 ) {
                                     Text(
-                                        text = if (mode == InputMode.DIRECT) Strings.DIRECT_MODE else Strings.STEP_BY_STEP_MODE,
+                                        text = stringResource(mode.titleRes),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -326,103 +388,167 @@ fun GameScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.width(IntrinsicSize.Min)
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        // Carries/Borrows indicators
-                        Row(horizontalArrangement = Arrangement.End) {
-                            Spacer(modifier = Modifier.width(40.dp)) // For operation symbol alignment
-                            repeat(displayLength) { index ->
-                                val indexFromRight = displayLength - 1 - index
-                                Box(
-                                    modifier = Modifier.size(60.dp),
-                                    contentAlignment = Alignment.BottomCenter
+                        // Solution Explanation (Moved here, just above the operation)
+                        AnimatedVisibility(
+                            visible = isShowingSolution,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            val scrollState = rememberScrollState()
+                            LaunchedEffect(solutionExplanations.size, scrollState.maxValue) {
+                                scrollState.scrollTo(scrollState.maxValue)
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
+                                    .padding(bottom = 16.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = operation.color.copy(alpha = 0.1f),
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(2.dp, operation.color.copy(alpha = 0.3f))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .verticalScroll(scrollState)
+                                        .animateContentSize()
                                 ) {
-                                    if (carries.containsKey(indexFromRight)) {
+                                    solutionExplanations.forEachIndexed { index, line ->
+                                        val isLast = index == solutionExplanations.size - 1
+                                        val isSuccess = line.contains("Harikasın")
+                                        val textColor = when {
+                                            isSuccess -> Color(0xFF4CAF50)
+                                            isLast -> operation.color
+                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                                        }
                                         Text(
-                                            text = carries[indexFromRight].toString(),
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.Red,
-                                            modifier = Modifier
-                                                .background(Color.Yellow, RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 4.dp)
-                                        )
-                                    }
-                                    if (borrows.containsKey(indexFromRight)) {
-                                        Text(
-                                            text = "↘",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.Red
+                                            text = line,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = if (isLast || isSuccess) FontWeight.Bold else FontWeight.Medium,
+                                                color = textColor
+                                            ),
+                                            modifier = Modifier.padding(vertical = 4.dp)
                                         )
                                     }
                                 }
                             }
                         }
 
-                        // Number 1
-                        DigitDisplayRow(
-                            number = num1.toString(),
-                            maxLength = displayLength,
-                            activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                            highlightColor = operation.color
-                        )
-
-                        // Number 2 with Operation
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.width((displayLength * 60 + 40).dp)
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.width(IntrinsicSize.Min)
                         ) {
-                            Text(
-                                text = operation.symbol,
-                                fontSize = 40.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = operation.color,
-                                modifier = Modifier.width(40.dp),
-                                textAlign = TextAlign.Center
-                            )
+                            // Carries/Borrows indicators
+                            Row(horizontalArrangement = Arrangement.End) {
+                                Spacer(modifier = Modifier.width(40.dp))
+                                repeat(displayLength) { index ->
+                                    val indexFromRight = displayLength - 1 - index
+                                    Box(
+                                        modifier = Modifier.size(60.dp),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        AnimatedContent(
+                                            targetState = carries.containsKey(indexFromRight) to (carries[indexFromRight] ?: 0),
+                                            transitionSpec = {
+                                                (scaleIn() + fadeIn()).togetherWith(scaleOut() + fadeOut())
+                                            },
+                                            label = "carry"
+                                        ) { (hasCarry, carryValue) ->
+                                            if (hasCarry) {
+                                                Surface(
+                                                    modifier = Modifier.padding(bottom = 4.dp),
+                                                    shape = RoundedCornerShape(50),
+                                                    color = Color(0xFFFFEB3B),
+                                                    tonalElevation = 4.dp,
+                                                    shadowElevation = 2.dp,
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
+                                                ) {
+                                                    Text(
+                                                        text = carryValue.toString(),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = Color(0xFFD32F2F),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                Spacer(modifier = Modifier.size(1.dp))
+                                            }
+                                        }
+                                        AnimatedContent(
+                                            targetState = borrows.containsKey(indexFromRight),
+                                            transitionSpec = {
+                                                (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+                                            },
+                                            label = "borrow"
+                                        ) { hasBorrow ->
+                                            if (hasBorrow) {
+                                                Text(
+                                                    text = "↘",
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.Red
+                                                )
+                                            } else {
+                                                Spacer(modifier = Modifier.size(1.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Number 1
                             DigitDisplayRow(
-                                number = num2.toString(),
+                                number = num1.toString(),
                                 maxLength = displayLength,
                                 activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                                highlightColor = operation.color
+                                highlightColor = operation.color,
+                                digitOverrides = num1Overrides
+                            )
+
+                            // Number 2 with Operation
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.width((displayLength * 60 + 40).dp)
+                            ) {
+                                Text(
+                                    text = operation.symbol,
+                                    fontSize = 40.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = operation.color,
+                                    modifier = Modifier.width(40.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                                DigitDisplayRow(
+                                    number = num2.toString(),
+                                    maxLength = displayLength,
+                                    activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
+                                    highlightColor = operation.color
+                                )
+                            }
+                            
+                            HorizontalDivider(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                thickness = 4.dp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            
+                            // Answer boxes
+                            AnswerInputArea(
+                                userInput = userInput,
+                                maxLength = displayLength,
+                                actualAnswerLength = answerLength,
+                                isCorrect = isCorrect,
+                                operationColor = operation.color,
+                                inputMode = if (isShowingSolution) InputMode.STEP_BY_STEP else inputMode
                             )
                         }
-                        
-                        HorizontalDivider(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            thickness = 4.dp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        
-                        // Answer boxes
-                        AnswerInputArea(
-                            userInput = userInput,
-                            maxLength = displayLength,
-                            actualAnswerLength = answerLength,
-                            isCorrect = isCorrect,
-                            operationColor = operation.color,
-                            inputMode = if (isShowingSolution) InputMode.STEP_BY_STEP else inputMode
-                        )
-                    }
-                }
-
-                // Solution Explanation
-                if (isShowingSolution) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                    ) {
-                        Text(
-                            text = solutionExplanation,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
 
@@ -435,7 +561,7 @@ fun GameScreen(
                 ) {
                     if (isCorrect != null && !isShowingSolution) {
                         Text(
-                            text = if (isCorrect == true) Strings.CORRECT_MSG else Strings.WRONG_MSG,
+                            text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
@@ -443,84 +569,89 @@ fun GameScreen(
                     }
                 }
 
-                // Step-by-Step Solution Button
-                AnimatedVisibility(
-                    visible = questionTimer >= 5 && isCorrect != true && !isShowingSolution,
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
+                // Buttons and Keypad Area
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                showStepByStepSolution()
-                            }
-                        },
-                        modifier = Modifier
-                            .padding(bottom = 8.dp)
-                            .fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                    ) {
-                        Text("💡 Adım Adım Çözümü Göster")
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = isShowingSolution && solutionExplanation == "İşte bu kadar! Harikasın! ✨",
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
-                ) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                showStepByStepSolution()
-                            }
-                        },
-                        modifier = Modifier
-                            .padding(bottom = 8.dp)
-                            .fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Text("🔄 Tekrar Oynat")
-                    }
-                }
-
-                // Custom Keypad
-                if (!isShowingSolution) {
-                    CustomKeypad(
-                        onNumberClick = { num ->
-                            if (isCorrect != true && userInput.length < answerLength) {
-                                userInput += num
-                            }
-                        },
-                        onDeleteClick = {
-                            if (isCorrect != true && userInput.isNotEmpty()) {
-                                userInput = userInput.dropLast(1)
-                                isCorrect = null
-                            }
-                        },
-                        onTickClick = {
-                            if (isCorrect != true) {
-                                checkAnswer()
-                            }
+                    // Step-by-Step Solution Button
+                    if ((questionTimer >= SHOW_SOLUTION_DELAY_SECONDS || isCorrect == false) && isCorrect != true && !isShowingSolution) {
+                        Button(
+                            onClick = {
+                                isShowingSolution = true
+                                scope.launch {
+                                    showStepByStepSolution()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Lightbulb, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(Res.string.show_solution), fontWeight = FontWeight.Bold)
                         }
-                    )
-                }
+                    }
 
-                AnimatedVisibility(
-                    visible = isCorrect == true && (!isShowingSolution || solutionExplanation == "İşte bu kadar! Harikasın! ✨"),
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-                ) {
-                    Button(
-                        onClick = { generateQuestion() },
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .height(56.dp)
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                    ) {
-                        Text(Strings.NEXT_QUESTION, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    if (isShowingSolution && isSolutionFinished) {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    showStepByStepSolution()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(Res.string.replay), fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Custom Keypad
+                    if (!isShowingSolution) {
+                        CustomKeypad(
+                            onNumberClick = { num ->
+                                if (isCorrect != true && userInput.length < answerLength) {
+                                    userInput += num
+                                }
+                            },
+                            onDeleteClick = {
+                                if (isCorrect != true && userInput.isNotEmpty()) {
+                                    userInput = userInput.dropLast(1)
+                                    isCorrect = null
+                                }
+                            },
+                            onTickClick = {
+                                if (isCorrect != true) {
+                                    checkAnswer()
+                                }
+                            }
+                        )
+                    }
+
+                    if (isCorrect == true && (!isShowingSolution || isSolutionFinished)) {
+                        Button(
+                            onClick = { generateQuestion() },
+                            modifier = Modifier
+                                .height(56.dp)
+                                .fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Text(stringResource(Res.string.next_question), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -537,7 +668,8 @@ fun DigitDisplayRow(
     number: String,
     maxLength: Int,
     activeDigitIndexFromRight: Int = -1,
-    highlightColor: Color = Color.Unspecified
+    highlightColor: Color = Color.Unspecified,
+    digitOverrides: Map<Int, String> = emptyMap()
 ) {
     Row(horizontalArrangement = Arrangement.End) {
         val padded = number.padStart(maxLength, ' ')
@@ -550,12 +682,18 @@ fun DigitDisplayRow(
                 contentAlignment = Alignment.Center
             ) {
                 if (char != ' ') {
+                    val displayChar = digitOverrides[indexFromRight] ?: char.toString()
                     Text(
-                        text = char.toString(),
-                        fontSize = 48.sp,
+                        text = displayChar,
+                        fontSize = if (displayChar.length > 1) 32.sp else 48.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isActive) highlightColor else MaterialTheme.colorScheme.onSurface
                     )
+                    
+                    if (digitOverrides.containsKey(indexFromRight) && displayChar != char.toString()) {
+                        // Draw a strike-through or similar to show original value was changed
+                        // For now just showing the new value is a good start.
+                    }
                 }
             }
         }

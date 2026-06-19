@@ -20,8 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.ugurbuga.learningmath.model.Operation
 import com.ugurbuga.learningmath.ui.components.StatsDashboard
 import com.ugurbuga.learningmath.ui.theme.LearningMathTheme
-import com.ugurbuga.learningmath.res.Strings
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun SelectionScreen(
@@ -43,7 +44,7 @@ fun SelectionScreen(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = Strings.APP_NAME,
+            text = stringResource(Res.string.app_name),
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -62,8 +63,8 @@ fun SelectionScreen(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.weight(1f)
         ) {
             items(Operation.entries) { operation ->
@@ -77,31 +78,41 @@ fun SelectionScreen(
 
 @Composable
 fun OperationCard(operation: Operation, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(24.dp)
     Card(
         modifier = Modifier
-            .aspectRatio(1.2f)
+            .aspectRatio(1f)
             .clip(shape)
             .clickable { onClick() },
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = operation.color)
+        colors = CardDefaults.cardColors(containerColor = operation.color),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Box(
+                modifier = Modifier.size(64.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = operation.symbol,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 40.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = operation.symbol,
-                fontSize = 40.sp,
+                text = stringResource(operation.titleRes),
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = operation.title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = Color.White,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -110,19 +121,19 @@ fun OperationCard(operation: Operation, onClick: () -> Unit) {
 @Composable
 fun LearningMathLogo(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.size(80.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = modifier.size(100.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             LogoSymbol(Operation.ADDITION, Modifier.weight(1f).fillMaxHeight())
             LogoSymbol(Operation.SUBTRACTION, Modifier.weight(1f).fillMaxHeight())
         }
         Row(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             LogoSymbol(Operation.MULTIPLICATION, Modifier.weight(1f).fillMaxHeight())
             LogoSymbol(Operation.DIVISION, Modifier.weight(1f).fillMaxHeight())
@@ -134,7 +145,7 @@ fun LearningMathLogo(modifier: Modifier = Modifier) {
 private fun LogoSymbol(operation: Operation, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(operation.color),
         contentAlignment = Alignment.Center
     ) {
@@ -142,8 +153,10 @@ private fun LogoSymbol(operation: Operation, modifier: Modifier = Modifier) {
             text = operation.symbol,
             color = Color.White,
             fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+            lineHeight = 32.sp,
+            modifier = Modifier.align(Alignment.Center)
         )
     }
 }

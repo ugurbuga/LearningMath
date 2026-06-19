@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Matematik Öğreniyorum</string>
+    <string name="stats_title">Başarılarım 🏆</string>
+    <string name="stats_title_today">Bugünkü Yıldızlarım ⭐</string>
+    <string name="input_mode_title">Nasıl Yazalım?</string>
+    <string name="direct_mode">Hızlı Yaz 🚀</string>
+    <string name="step_by_step_mode">Tane Tane 🐢</string>
+    <string name="direct_desc">Sayıyı hemen yazalım!</string>
+    <string name="step_by_step_desc">Birler basamağından başlayarak tane tane yazalım.</string>
+    <string name="next_question">Hadi Diğer Soruya! ➔</string>
+    <string name="correct_msg">Süpersin! Tam isabet! 🌟</string>
+    <string name="wrong_msg">Küçük bir hata, tekrar dene! 💪</string>
+    <string name="back">Geri</string>
+
+    <string name="op_addition">Toplama</string>
+    <string name="op_subtraction">Çıkarma</string>
+    <string name="op_multiplication">Çarpma</string>
+    <string name="op_division">Bölme</string>
+
+    <string name="show_solution">Adım Adım Çözümü Göster</string>
+    <string name="replay">Tekrar Oynat</string>
+    <string name="solution_step_add">➜ %1$d + %2$d = %3$d</string>
+    <string name="solution_carry_add">➜ Şimdi eldeyi ekliyoruz: %1$d + %2$d = %3$d</string>
+    <string name="solution_write_number">➜ %1$d sayısını yazıyoruz.</string>
+    <string name="solution_carry_next">➜ Elde var %1$d, bir sonraki basamağa aktarıyoruz.</string>
+    <string name="solution_carry_final">➜ En sonda eldeyi (%1$d) olduğu gibi yazıyoruz.</string>
+    <string name="solution_sub_not_enough">➜ %1$d'den %2$d çıkmaz. Komşudan onluk aldık.</string>
+    <string name="solution_borrow_neighbor">➜ Komşudaki %1$d rakamından 1 aldık, geriye %2$d kaldı.</string>
+    <string name="solution_borrow_add">➜ Komşudan gelen onluğu ekliyoruz: %1$d + 10 = %2$d</string>
+    <string name="solution_step_sub">➜ %1$d - %2$d = %3$d</string>
+    <string name="solution_mul_explanation">➜ %1$d x %2$d işlemi, %3$d tane %4$d'yi toplamak demektir.</string>
+    <string name="solution_div_explanation">➜ %1$d ÷ %2$d işlemi, %3$d'in içinde kaç tane %4$d olduğunu bulmaktır.</string>
+    <string name="solution_div_counting">➜ %1$d'şer sayalım: %2$s</string>
+    <string name="solution_div_result">➜ Tam %1$d tane var!</string>
+    <string name="solution_finished">İşte bu kadar! Harikasın! ✨</string>
+    <string name="solutions_count">çözüm</string>
+</resources>
