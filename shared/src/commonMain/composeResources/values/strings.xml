@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Matematik Öğreniyorum</string>
+    <string name="app_name">Matematik Canavarı 👾</string>
     <string name="stats_title">Başarılarım 🏆</string>
     <string name="stats_title_today">Bugünkü Yıldızlarım ⭐</string>
     <string name="input_mode_title">Nasıl Yazalım?</string>
@@ -10,28 +10,28 @@
     <string name="next_question">Hadi Diğer Soruya! ➔</string>
     <string name="correct_msg">Süpersin! Tam isabet! 🌟</string>
     <string name="wrong_msg">Küçük bir hata, tekrar dene! 💪</string>
-    <string name="back">Geri</string>
+    <string name="back">Geri Git</string>
 
     <string name="op_addition">Toplama</string>
     <string name="op_subtraction">Çıkarma</string>
     <string name="op_multiplication">Çarpma</string>
     <string name="op_division">Bölme</string>
 
-    <string name="show_solution">Adım Adım Çözümü Göster</string>
-    <string name="replay">Tekrar Oynat</string>
-    <string name="solution_step_add">➜ %1$d + %2$d = %3$d</string>
+    <string name="show_solution">Birlikte Çözelim mi? 💡</string>
+    <string name="replay">Bir Daha Anlat</string>
+    <string name="solution_step_add">➜ %1$d ile %2$d'yi toplarsak %3$d eder.</string>
     <string name="solution_carry_add">➜ Şimdi eldeyi ekliyoruz: %1$d + %2$d = %3$d</string>
-    <string name="solution_write_number">➜ %1$d sayısını yazıyoruz.</string>
-    <string name="solution_carry_next">➜ Elde var %1$d, bir sonraki basamağa aktarıyoruz.</string>
-    <string name="solution_carry_final">➜ En sonda eldeyi (%1$d) olduğu gibi yazıyoruz.</string>
-    <string name="solution_sub_not_enough">➜ %1$d'den %2$d çıkmaz. Komşudan onluk aldık.</string>
-    <string name="solution_borrow_neighbor">➜ Komşudaki %1$d rakamından 1 aldık, geriye %2$d kaldı.</string>
-    <string name="solution_borrow_add">➜ Komşudan gelen onluğu ekliyoruz: %1$d + 10 = %2$d</string>
-    <string name="solution_step_sub">➜ %1$d - %2$d = %3$d</string>
-    <string name="solution_mul_explanation">➜ %1$d x %2$d işlemi, %3$d tane %4$d'yi toplamak demektir.</string>
-    <string name="solution_div_explanation">➜ %1$d ÷ %2$d işlemi, %3$d'in içinde kaç tane %4$d olduğunu bulmaktır.</string>
-    <string name="solution_div_counting">➜ %1$d'şer sayalım: %2$s</string>
-    <string name="solution_div_result">➜ Tam %1$d tane var!</string>
+    <string name="solution_write_number">➜ Buraya %1$d yazalım.</string>
+    <string name="solution_carry_next">➜ Elde var %1$d, hop komşuya verdik!</string>
+    <string name="solution_carry_final">➜ En sonda kalan %1$d'yi başa yazıyoruz.</string>
+    <string name="solution_sub_not_enough">➜ %1$d'den %2$d çıkmaz, komşu komşu huuu! Onluk istiyoruz.</string>
+    <string name="solution_borrow_neighbor">➜ Komşudaki %1$d arkadaştan 1 aldık, onda %2$d kaldı.</string>
+    <string name="solution_borrow_add">➜ Komşudan gelen onluğu ekledik: %1$d + 10 = %2$d oldu!</string>
+    <string name="solution_step_sub">➜ %1$d'den %2$d çıkarsa %3$d kalır.</string>
+    <string name="solution_mul_explanation">➜ Bu işlem tam %1$d tane %2$d'yi toplamak gibi!</string>
+    <string name="solution_div_explanation">➜ Bakalım %1$d'in içinde kaç tane %2$d gizlenmiş?</string>
+    <string name="solution_div_counting">➜ %1$d'şer ritmik sayalım: %2$s</string>
+    <string name="solution_div_result">➜ Yaşasın! Tam %1$d tane varmış!</string>
     <string name="solution_finished">İşte bu kadar! Harikasın! ✨</string>
-    <string name="solutions_count">çözüm</string>
+    <string name="solutions_count">ipucu</string>
 </resources>

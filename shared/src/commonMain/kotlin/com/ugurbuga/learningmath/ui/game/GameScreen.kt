@@ -26,6 +26,7 @@ import com.ugurbuga.learningmath.model.InputMode
 import com.ugurbuga.learningmath.ui.components.ConfettiEffect
 import com.ugurbuga.learningmath.ui.components.CustomKeypad
 import com.ugurbuga.learningmath.ui.theme.LearningMathTheme
+import com.ugurbuga.learningmath.util.rememberTextToSpeechHelper
 import com.ugurbuga.learningmath.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.getString
@@ -35,7 +36,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import kotlin.random.Random
 
 // TODO: Set this to 30 for release
-private const val SHOW_SOLUTION_DELAY_SECONDS = 3
+private const val SHOW_SOLUTION_DELAY_SECONDS = 15
 private const val SOLUTION_STEP_DELAY_MS = 3000L
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,8 +78,10 @@ fun GameScreen(
     var num2 by remember(operation) { mutableIntStateOf(initialNumbers.second) }
     var userInput by remember { mutableStateOf("") }
     var isCorrect by remember { mutableStateOf<Boolean?>(null) }
+    var hasHadError by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val ttsHelper = rememberTextToSpeechHelper()
 
     var questionTimer by remember { mutableIntStateOf(0) }
     var isShowingSolution by remember { mutableStateOf(false) }
@@ -101,6 +104,7 @@ fun GameScreen(
     val displayLength = maxOf(num1.toString().length, num2.toString().length, answerLength)
 
     fun generateQuestion() {
+        ttsHelper.stop()
         when (operation) {
             Operation.ADDITION -> {
                 val a = Random.nextInt(1, 50)
@@ -132,6 +136,7 @@ fun GameScreen(
         }
         userInput = ""
         isCorrect = null
+        hasHadError = false
         showConfetti = false
         questionTimer = 0
         isShowingSolution = false
@@ -163,6 +168,7 @@ fun GameScreen(
 
         suspend fun addSolutionExplanation(text: String, holdMs: Long = SOLUTION_STEP_DELAY_MS) {
             solutionExplanations.add(text)
+            ttsHelper.speak(text)
             delay(holdMs)
         }
 
@@ -288,6 +294,7 @@ fun GameScreen(
             onCorrectAnswer(operation)
         } else {
             isCorrect = false
+            hasHadError = true
             scope.launch {
                 repeat(3) {
                     shakeOffset.animateTo(20f, animationSpec = tween(50))
@@ -339,15 +346,13 @@ fun GameScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                    .padding(innerPadding),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Input Mode Selection (Only for Addition/Subtraction)
+                // Input Mode Selection (Only for Addition/Subtraction) - FIXED AT TOP
                 if (operation == Operation.ADDITION || operation == Operation.SUBTRACTION) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
@@ -379,16 +384,20 @@ fun GameScreen(
                     }
                 }
 
-                // Question Display
+                // Scrollable content area
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .offset(x = shakeOffset.value.dp),
+                        .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         // Solution Explanation (Moved here, just above the operation)
                         AnimatedVisibility(
@@ -440,143 +449,156 @@ fun GameScreen(
                             }
                         }
 
+                        // Question Display
                         Column(
-                            horizontalAlignment = Alignment.End,
-                            modifier = Modifier.width(IntrinsicSize.Min)
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.offset(x = shakeOffset.value.dp)
                         ) {
-                            // Carries/Borrows indicators
-                            Row(horizontalArrangement = Arrangement.End) {
-                                Spacer(modifier = Modifier.width(40.dp))
-                                repeat(displayLength) { index ->
-                                    val indexFromRight = displayLength - 1 - index
-                                    Box(
-                                        modifier = Modifier.size(60.dp),
-                                        contentAlignment = Alignment.BottomCenter
-                                    ) {
-                                        AnimatedContent(
-                                            targetState = carries.containsKey(indexFromRight) to (carries[indexFromRight] ?: 0),
-                                            transitionSpec = {
-                                                (scaleIn() + fadeIn()).togetherWith(scaleOut() + fadeOut())
-                                            },
-                                            label = "carry"
-                                        ) { (hasCarry, carryValue) ->
-                                            if (hasCarry) {
-                                                Surface(
-                                                    modifier = Modifier.padding(bottom = 4.dp),
-                                                    shape = RoundedCornerShape(50),
-                                                    color = Color(0xFFFFEB3B),
-                                                    tonalElevation = 4.dp,
-                                                    shadowElevation = 2.dp,
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
-                                                ) {
-                                                    Text(
-                                                        text = carryValue.toString(),
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        color = Color(0xFFD32F2F),
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
+
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.width(IntrinsicSize.Min)
+                            ) {
+                                // Carries/Borrows indicators
+                                Row(horizontalArrangement = Arrangement.End) {
+                                    Spacer(modifier = Modifier.width(40.dp))
+                                    repeat(displayLength) { index ->
+                                        val indexFromRight = displayLength - 1 - index
+                                        Box(
+                                            modifier = Modifier.size(60.dp),
+                                            contentAlignment = Alignment.BottomCenter
+                                        ) {
+                                            AnimatedContent(
+                                                targetState = carries.containsKey(indexFromRight) to (carries[indexFromRight] ?: 0),
+                                                transitionSpec = {
+                                                    (scaleIn() + fadeIn()).togetherWith(scaleOut() + fadeOut())
+                                                },
+                                                label = "carry"
+                                            ) { (hasCarry, carryValue) ->
+                                                if (hasCarry) {
+                                                    Surface(
+                                                        modifier = Modifier.padding(bottom = 4.dp),
+                                                        shape = RoundedCornerShape(50),
+                                                        color = Color(0xFFFFEB3B),
+                                                        tonalElevation = 4.dp,
+                                                        shadowElevation = 2.dp,
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
+                                                    ) {
+                                                        Text(
+                                                            text = carryValue.toString(),
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = Color(0xFFD32F2F),
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                } else {
+                                                    Spacer(modifier = Modifier.size(1.dp))
                                                 }
-                                            } else {
-                                                Spacer(modifier = Modifier.size(1.dp))
                                             }
-                                        }
-                                        AnimatedContent(
-                                            targetState = borrows.containsKey(indexFromRight),
-                                            transitionSpec = {
-                                                (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
-                                            },
-                                            label = "borrow"
-                                        ) { hasBorrow ->
-                                            if (hasBorrow) {
-                                                Text(
-                                                    text = "↘",
-                                                    fontSize = 20.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.Red
-                                                )
-                                            } else {
-                                                Spacer(modifier = Modifier.size(1.dp))
+                                            AnimatedContent(
+                                                targetState = borrows.containsKey(indexFromRight),
+                                                transitionSpec = {
+                                                    (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+                                                },
+                                                label = "borrow"
+                                            ) { hasBorrow ->
+                                                if (hasBorrow) {
+                                                    Text(
+                                                        text = "↘",
+                                                        fontSize = 20.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.Red
+                                                    )
+                                                } else {
+                                                    Spacer(modifier = Modifier.size(1.dp))
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            // Number 1
-                            DigitDisplayRow(
-                                number = num1.toString(),
-                                maxLength = displayLength,
-                                activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                                highlightColor = operation.color,
-                                digitOverrides = num1Overrides
-                            )
-
-                            // Number 2 with Operation
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.width((displayLength * 60 + 40).dp)
-                            ) {
-                                Text(
-                                    text = operation.symbol,
-                                    fontSize = 40.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = operation.color,
-                                    modifier = Modifier.width(40.dp),
-                                    textAlign = TextAlign.Center
-                                )
+                                // Number 1
                                 DigitDisplayRow(
-                                    number = num2.toString(),
+                                    number = num1.toString(),
                                     maxLength = displayLength,
                                     activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                                    highlightColor = operation.color
+                                    highlightColor = operation.color,
+                                    digitOverrides = num1Overrides
+                                )
+
+                                // Number 2 with Operation
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.width((displayLength * 60 + 40).dp)
+                                ) {
+                                    Text(
+                                        text = operation.symbol,
+                                        fontSize = 40.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = operation.color,
+                                        modifier = Modifier.width(40.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    DigitDisplayRow(
+                                        number = num2.toString(),
+                                        maxLength = displayLength,
+                                        activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
+                                        highlightColor = operation.color
+                                    )
+                                }
+                                
+                                HorizontalDivider(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    thickness = 4.dp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                
+                                // Answer boxes
+                                AnswerInputArea(
+                                    userInput = userInput,
+                                    maxLength = displayLength,
+                                    actualAnswerLength = answerLength,
+                                    isCorrect = isCorrect,
+                                    operationColor = operation.color,
+                                    inputMode = if (isShowingSolution) InputMode.STEP_BY_STEP else inputMode
                                 )
                             }
-                            
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                thickness = 4.dp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            
-                            // Answer boxes
-                            AnswerInputArea(
-                                userInput = userInput,
-                                maxLength = displayLength,
-                                actualAnswerLength = answerLength,
-                                isCorrect = isCorrect,
-                                operationColor = operation.color,
-                                inputMode = if (isShowingSolution) InputMode.STEP_BY_STEP else inputMode
-                            )
+                        }
+
+                        // Message Area
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isCorrect != null && !isShowingSolution) {
+                                Text(
+                                    text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
+                                )
+                            }
                         }
                     }
                 }
 
-                // Message Area
-                Box(
+                // Fixed keypad area
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isCorrect != null && !isShowingSolution) {
-                        Text(
-                            text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        )
-                    }
-                }
-
-                // Buttons and Keypad Area
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Step-by-Step Solution Button
-                    if ((questionTimer >= SHOW_SOLUTION_DELAY_SECONDS || isCorrect == false) && isCorrect != true && !isShowingSolution) {
+                    AnimatedVisibility(
+                        visible = questionTimer >= SHOW_SOLUTION_DELAY_SECONDS && hasHadError && isCorrect != true && !isShowingSolution,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
                         Button(
                             onClick = {
                                 isShowingSolution = true
@@ -597,7 +619,11 @@ fun GameScreen(
                         }
                     }
 
-                    if (isShowingSolution && isSolutionFinished) {
+                    AnimatedVisibility(
+                        visible = isShowingSolution && isSolutionFinished,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
@@ -641,7 +667,11 @@ fun GameScreen(
                         )
                     }
 
-                    if (isCorrect == true && (!isShowingSolution || isSolutionFinished)) {
+                    AnimatedVisibility(
+                        visible = isCorrect == true && (!isShowingSolution || isSolutionFinished),
+                        enter = scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
+                        exit = scaleOut() + fadeOut()
+                    ) {
                         Button(
                             onClick = { generateQuestion() },
                             modifier = Modifier
