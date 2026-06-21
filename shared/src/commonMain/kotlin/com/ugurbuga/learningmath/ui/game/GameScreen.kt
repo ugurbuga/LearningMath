@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.ugurbuga.learningmath.model.Operation
 import com.ugurbuga.learningmath.model.InputMode
 import com.ugurbuga.learningmath.ui.components.ConfettiEffect
+import com.ugurbuga.learningmath.ui.components.ConfettiType
 import com.ugurbuga.learningmath.ui.components.CustomKeypad
 import com.ugurbuga.learningmath.ui.theme.LearningMathTheme
 import com.ugurbuga.learningmath.util.rememberTextToSpeechHelper
@@ -35,7 +36,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.tooling.preview.Preview
 import kotlin.random.Random
 
-// TODO: Set this to 30 for release
 private const val SHOW_SOLUTION_DELAY_SECONDS = 15
 private const val SOLUTION_STEP_DELAY_MS = 3000L
 
@@ -80,6 +80,7 @@ fun GameScreen(
     var isCorrect by remember { mutableStateOf<Boolean?>(null) }
     var hasHadError by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
+    var confettiType by remember { mutableStateOf(ConfettiType.random()) }
     val scope = rememberCoroutineScope()
     val ttsHelper = rememberTextToSpeechHelper()
 
@@ -101,7 +102,12 @@ fun GameScreen(
         }
     }
     val answerLength = answerValue.toString().length
-    val displayLength = maxOf(num1.toString().length, num2.toString().length, answerLength)
+
+    val effectiveInputMode = if (operation == Operation.ADDITION || operation == Operation.SUBTRACTION) {
+        InputMode.STEP_BY_STEP
+    } else {
+        inputMode
+    }
 
     fun generateQuestion() {
         ttsHelper.stop()
@@ -174,6 +180,7 @@ fun GameScreen(
 
         val n1Str = num1.toString().reversed()
         val n2Str = num2.toString().reversed()
+        val displayLength = maxOf(num1.toString().length, num2.toString().length, answerLength)
 
         when (operation) {
             Operation.ADDITION -> {
@@ -271,18 +278,14 @@ fun GameScreen(
         addSolutionExplanation(getString(Res.string.solution_finished))
         isSolutionFinished = true
         isCorrect = true
+        confettiType = ConfettiType.random()
         showConfetti = true
-    }
-
-    val activeColumnIndex = remember(userInput, inputMode, isCorrect) {
-        if (isCorrect != null || inputMode == InputMode.DIRECT) -1
-        else userInput.length
     }
 
     val shakeOffset = remember { Animatable(0f) }
     
     fun checkAnswer() {
-        val processedInput = if (inputMode == InputMode.STEP_BY_STEP) {
+        val processedInput = if (effectiveInputMode == InputMode.STEP_BY_STEP) {
             userInput.reversed()
         } else {
             userInput
@@ -290,6 +293,7 @@ fun GameScreen(
 
         if (processedInput.isNotEmpty() && processedInput.toInt() == answerValue) {
             isCorrect = true
+            confettiType = ConfettiType.random()
             showConfetti = true
             onCorrectAnswer(operation)
         } else {
@@ -305,391 +309,456 @@ fun GameScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = stringResource(operation.titleRes),
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = operation.color
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = operation.symbol,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = operation.color
-                                )
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(Res.string.back),
-                                tint = operation.color
-                            )
-                        }
-                    }
+    if (isShowingSolution) {
+        GameSolutionContent(
+            operation = operation,
+            num1 = num1,
+            num2 = num2,
+            userInput = userInput,
+            isSolutionFinished = isSolutionFinished,
+            solutionStep = solutionStep,
+            solutionExplanations = solutionExplanations,
+            carries = carries,
+            borrows = borrows,
+            num1Overrides = num1Overrides,
+            onBack = onBack,
+            onReplaySolution = { scope.launch { showStepByStepSolution() } },
+            onNextQuestion = { generateQuestion() }
+        )
+    } else {
+        GamePlayContent(
+            operation = operation,
+            num1 = num1,
+            num2 = num2,
+            userInput = userInput,
+            isCorrect = isCorrect,
+            hasHadError = hasHadError,
+            inputMode = effectiveInputMode,
+            questionTimer = questionTimer,
+            shakeOffset = shakeOffset.value,
+            onBack = onBack,
+            onShowSolution = { scope.launch { showStepByStepSolution() } },
+            onNumberClick = { num ->
+                if (isCorrect != true && userInput.length < answerLength) {
+                    userInput += num
+                }
+            },
+            onDeleteClick = {
+                if (isCorrect != true && userInput.isNotEmpty()) {
+                    userInput = userInput.dropLast(1)
+                    isCorrect = null
+                }
+            },
+            onTickClick = {
+                if (isCorrect != true) {
+                    checkAnswer()
+                }
+            },
+            onNextQuestion = { generateQuestion() }
+        )
+    }
+
+    if (showConfetti) {
+        ConfettiEffect(
+            type = confettiType,
+            onAnimationFinished = {
+                showConfetti = false
+                confettiType = ConfettiType.random()
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GamePlayContent(
+    operation: Operation,
+    num1: Int,
+    num2: Int,
+    userInput: String,
+    isCorrect: Boolean?,
+    hasHadError: Boolean,
+    inputMode: InputMode,
+    questionTimer: Int,
+    shakeOffset: Float,
+    onBack: () -> Unit,
+    onShowSolution: () -> Unit,
+    onNumberClick: (String) -> Unit,
+    onDeleteClick: () -> Unit,
+    onTickClick: () -> Unit,
+    onNextQuestion: () -> Unit
+) {
+    val answerValue = when (operation) {
+        Operation.ADDITION -> num1 + num2
+        Operation.SUBTRACTION -> num1 - num2
+        Operation.MULTIPLICATION -> num1 * num2
+        Operation.DIVISION -> num1 / num2
+    }
+    val answerLength = answerValue.toString().length
+    val displayLength = maxOf(num1.toString().length, num2.toString().length, answerLength)
+    val activeColumnIndex = if (isCorrect != null || inputMode == InputMode.DIRECT) -1 else userInput.length
+
+    Scaffold(
+        topBar = { GameTopBar(operation, onBack) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    MathOperationLayout(
+                        operation = operation,
+                        num1 = num1,
+                        num2 = num2,
+                        userInput = userInput,
+                        isCorrect = isCorrect,
+                        displayLength = displayLength,
+                        answerLength = answerLength,
+                        activeColumnIndex = activeColumnIndex,
+                        carries = emptyMap(),
+                        borrows = emptyMap(),
+                        num1Overrides = emptyMap(),
+                        inputMode = inputMode,
+                        shakeOffset = shakeOffset,
+                        isFinished = isCorrect == true
+                    )
+
+                    FeedbackMessage(isCorrect = isCorrect)
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (questionTimer >= SHOW_SOLUTION_DELAY_SECONDS && hasHadError && isCorrect != true) {
+                    ShowSolutionButton(onClick = onShowSolution)
+                }
+
+                CustomKeypad(onNumberClick = onNumberClick, onDeleteClick = onDeleteClick, onTickClick = onTickClick)
+
+                if (isCorrect == true) {
+                    NextQuestionButton(onClick = onNextQuestion)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GameSolutionContent(
+    operation: Operation,
+    num1: Int,
+    num2: Int,
+    userInput: String,
+    isSolutionFinished: Boolean,
+    solutionStep: Int,
+    solutionExplanations: List<String>,
+    carries: Map<Int, Int>,
+    borrows: Map<Int, Boolean>,
+    num1Overrides: Map<Int, String>,
+    onBack: () -> Unit,
+    onReplaySolution: () -> Unit,
+    onNextQuestion: () -> Unit
+) {
+    val answerValue = when (operation) {
+        Operation.ADDITION -> num1 + num2
+        Operation.SUBTRACTION -> num1 - num2
+        Operation.MULTIPLICATION -> num1 * num2
+        Operation.DIVISION -> num1 / num2
+    }
+    val answerLength = answerValue.toString().length
+    val displayLength = maxOf(num1.toString().length, num2.toString().length, answerLength)
+
+    Scaffold(
+        topBar = { GameTopBar(operation, onBack) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    SolutionExplanationCard(
+                        operation = operation,
+                        explanations = solutionExplanations
+                    )
+
+                    MathOperationLayout(
+                        operation = operation,
+                        num1 = num1,
+                        num2 = num2,
+                        userInput = userInput,
+                        isCorrect = true,
+                        displayLength = displayLength,
+                        answerLength = answerLength,
+                        activeColumnIndex = solutionStep,
+                        carries = carries,
+                        borrows = borrows,
+                        num1Overrides = num1Overrides,
+                        inputMode = InputMode.STEP_BY_STEP,
+                        isFinished = isSolutionFinished
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isSolutionFinished) {
+                    ReplaySolutionButton(onClick = onReplaySolution)
+                    NextQuestionButton(onClick = onNextQuestion)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FeedbackMessage(isCorrect: Boolean?) {
+    Box(modifier = Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) {
+        if (isCorrect != null) {
+            Text(
+                text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
+            )
+        }
+    }
+}
+
+@Composable
+fun SolutionExplanationCard(
+    operation: Operation,
+    explanations: List<String>
+) {
+    val scrollState = rememberScrollState()
+    
+    // Her yeni açıklama eklendiğinde en alta kaydır
+    LaunchedEffect(explanations.size) {
+        if (explanations.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).padding(bottom = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = operation.color.copy(alpha = 0.1f)),
+        border = androidx.compose.foundation.BorderStroke(2.dp, operation.color.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .verticalScroll(scrollState)
+        ) {
+            explanations.forEachIndexed { index, line ->
+                val isLast = index == explanations.size - 1
+                val isSuccess = line.contains("Harikasın")
+                Text(
+                    text = line,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isLast || isSuccess) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSuccess) Color(0xFF4CAF50) else if (isLast) operation.color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                    ),
+                    modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Input Mode Selection (Only for Addition/Subtraction) - FIXED AT TOP
-                if (operation == Operation.ADDITION || operation == Operation.SUBTRACTION) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        }
+    }
+}
+
+@Composable
+fun ShowSolutionButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+    ) {
+        Icon(imageVector = Icons.Default.Lightbulb, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(stringResource(Res.string.show_solution), fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun ReplaySolutionButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.secondary)
+    ) {
+        Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(stringResource(Res.string.replay), fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun NextQuestionButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.height(56.dp).fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+    ) {
+        Text(stringResource(Res.string.next_question), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GameTopBar(operation: Operation, onBack: () -> Unit) {
+    CenterAlignedTopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = stringResource(operation.titleRes), style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = operation.color))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = operation.symbol, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, color = operation.color))
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back), tint = operation.color)
+            }
+        }
+    )
+}
+
+@Composable
+fun MathOperationLayout(
+    operation: Operation,
+    num1: Int,
+    num2: Int,
+    userInput: String,
+    isCorrect: Boolean?,
+    displayLength: Int,
+    answerLength: Int,
+    activeColumnIndex: Int,
+    carries: Map<Int, Int>,
+    borrows: Map<Int, Boolean>,
+    num1Overrides: Map<Int, String>,
+    inputMode: InputMode,
+    shakeOffset: Float = 0f,
+    isFinished: Boolean = false
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.offset(x = shakeOffset.dp)) {
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(IntrinsicSize.Min)) {
+            CarryBorrowIndicators(
+                displayLength = displayLength,
+                carries = carries,
+                borrows = borrows
+            )
+
+            MathOperationBody(
+                operation = operation,
+                num1 = num1.toString(),
+                num2 = num2.toString(),
+                displayLength = displayLength,
+                activeColumnIndex = activeColumnIndex,
+                num1Overrides = num1Overrides
+            )
+            
+            AnswerInputArea(
+                userInput = userInput,
+                maxLength = displayLength,
+                actualAnswerLength = answerLength,
+                isCorrect = isCorrect,
+                operationColor = operation.color,
+                inputMode = inputMode,
+                activeColumnIndex = activeColumnIndex,
+                isFinished = isFinished
+            )
+        }
+    }
+}
+
+@Composable
+fun CarryBorrowIndicators(
+    displayLength: Int,
+    carries: Map<Int, Int>,
+    borrows: Map<Int, Boolean>
+) {
+    Row(horizontalArrangement = Arrangement.End) {
+        Spacer(modifier = Modifier.width(40.dp))
+        repeat(displayLength) { index ->
+            val indexFromRight = displayLength - 1 - index
+            Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.BottomCenter) {
+                if (carries.containsKey(indexFromRight)) {
+                    Surface(
+                        modifier = Modifier.padding(bottom = 4.dp),
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFFFEB3B),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
                     ) {
-                        Row(
-                            modifier = Modifier.padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            InputMode.entries.forEach { mode ->
-                                val isSelected = mode == inputMode
-                                Button(
-                                    onClick = { onInputModeChange(mode) },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isSelected) operation.color else Color.Transparent,
-                                        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                                    contentPadding = PaddingValues(0.dp),
-                                    elevation = null
-                                ) {
-                                    Text(
-                                        text = stringResource(mode.titleRes),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Scrollable content area
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // Solution Explanation (Moved here, just above the operation)
-                        AnimatedVisibility(
-                            visible = isShowingSolution,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            val scrollState = rememberScrollState()
-                            LaunchedEffect(solutionExplanations.size, scrollState.maxValue) {
-                                scrollState.scrollTo(scrollState.maxValue)
-                            }
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 200.dp)
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = operation.color.copy(alpha = 0.1f),
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(2.dp, operation.color.copy(alpha = 0.3f))
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(16.dp)
-                                        .verticalScroll(scrollState)
-                                        .animateContentSize()
-                                ) {
-                                    solutionExplanations.forEachIndexed { index, line ->
-                                        val isLast = index == solutionExplanations.size - 1
-                                        val isSuccess = line.contains("Harikasın")
-                                        val textColor = when {
-                                            isSuccess -> Color(0xFF4CAF50)
-                                            isLast -> operation.color
-                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-                                        }
-                                        Text(
-                                            text = line,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = if (isLast || isSuccess) FontWeight.Bold else FontWeight.Medium,
-                                                color = textColor
-                                            ),
-                                            modifier = Modifier.padding(vertical = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Question Display
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.offset(x = shakeOffset.value.dp)
-                        ) {
-
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                modifier = Modifier.width(IntrinsicSize.Min)
-                            ) {
-                                // Carries/Borrows indicators
-                                Row(horizontalArrangement = Arrangement.End) {
-                                    Spacer(modifier = Modifier.width(40.dp))
-                                    repeat(displayLength) { index ->
-                                        val indexFromRight = displayLength - 1 - index
-                                        Box(
-                                            modifier = Modifier.size(60.dp),
-                                            contentAlignment = Alignment.BottomCenter
-                                        ) {
-                                            AnimatedContent(
-                                                targetState = carries.containsKey(indexFromRight) to (carries[indexFromRight] ?: 0),
-                                                transitionSpec = {
-                                                    (scaleIn() + fadeIn()).togetherWith(scaleOut() + fadeOut())
-                                                },
-                                                label = "carry"
-                                            ) { (hasCarry, carryValue) ->
-                                                if (hasCarry) {
-                                                    Surface(
-                                                        modifier = Modifier.padding(bottom = 4.dp),
-                                                        shape = RoundedCornerShape(50),
-                                                        color = Color(0xFFFFEB3B),
-                                                        tonalElevation = 4.dp,
-                                                        shadowElevation = 2.dp,
-                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
-                                                    ) {
-                                                        Text(
-                                                            text = carryValue.toString(),
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.ExtraBold,
-                                                            color = Color(0xFFD32F2F),
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-                                                } else {
-                                                    Spacer(modifier = Modifier.size(1.dp))
-                                                }
-                                            }
-                                            AnimatedContent(
-                                                targetState = borrows.containsKey(indexFromRight),
-                                                transitionSpec = {
-                                                    (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
-                                                },
-                                                label = "borrow"
-                                            ) { hasBorrow ->
-                                                if (hasBorrow) {
-                                                    Text(
-                                                        text = "↘",
-                                                        fontSize = 20.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color.Red
-                                                    )
-                                                } else {
-                                                    Spacer(modifier = Modifier.size(1.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Number 1
-                                DigitDisplayRow(
-                                    number = num1.toString(),
-                                    maxLength = displayLength,
-                                    activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                                    highlightColor = operation.color,
-                                    digitOverrides = num1Overrides
-                                )
-
-                                // Number 2 with Operation
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.width((displayLength * 60 + 40).dp)
-                                ) {
-                                    Text(
-                                        text = operation.symbol,
-                                        fontSize = 40.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = operation.color,
-                                        modifier = Modifier.width(40.dp),
-                                        textAlign = TextAlign.Center
-                                    )
-                                    DigitDisplayRow(
-                                        number = num2.toString(),
-                                        maxLength = displayLength,
-                                        activeDigitIndexFromRight = if (isShowingSolution) solutionStep else activeColumnIndex,
-                                        highlightColor = operation.color
-                                    )
-                                }
-                                
-                                HorizontalDivider(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    thickness = 4.dp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                
-                                // Answer boxes
-                                AnswerInputArea(
-                                    userInput = userInput,
-                                    maxLength = displayLength,
-                                    actualAnswerLength = answerLength,
-                                    isCorrect = isCorrect,
-                                    operationColor = operation.color,
-                                    inputMode = if (isShowingSolution) InputMode.STEP_BY_STEP else inputMode
-                                )
-                            }
-                        }
-
-                        // Message Area
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isCorrect != null && !isShowingSolution) {
-                                Text(
-                                    text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Fixed keypad area
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Step-by-Step Solution Button
-                    AnimatedVisibility(
-                        visible = questionTimer >= SHOW_SOLUTION_DELAY_SECONDS && hasHadError && isCorrect != true && !isShowingSolution,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Button(
-                            onClick = {
-                                isShowingSolution = true
-                                scope.launch {
-                                    showStepByStepSolution()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Lightbulb, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(Res.string.show_solution), fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = isShowingSolution && isSolutionFinished,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    showStepByStepSolution()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.secondary
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.secondary)
-                        ) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(Res.string.replay), fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // Custom Keypad
-                    if (!isShowingSolution) {
-                        CustomKeypad(
-                            onNumberClick = { num ->
-                                if (isCorrect != true && userInput.length < answerLength) {
-                                    userInput += num
-                                }
-                            },
-                            onDeleteClick = {
-                                if (isCorrect != true && userInput.isNotEmpty()) {
-                                    userInput = userInput.dropLast(1)
-                                    isCorrect = null
-                                }
-                            },
-                            onTickClick = {
-                                if (isCorrect != true) {
-                                    checkAnswer()
-                                }
-                            }
+                        Text(
+                            text = carries[indexFromRight].toString(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFD32F2F),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
-
-                    AnimatedVisibility(
-                        visible = isCorrect == true && (!isShowingSolution || isSolutionFinished),
-                        enter = scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-                        exit = scaleOut() + fadeOut()
-                    ) {
-                        Button(
-                            onClick = { generateQuestion() },
-                            modifier = Modifier
-                                .height(56.dp)
-                                .fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                        ) {
-                            Text(stringResource(Res.string.next_question), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                }
+                if (borrows.containsKey(indexFromRight)) {
+                    Text(text = "↘", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red)
                 }
             }
         }
+    }
+}
 
-        if (showConfetti) {
-            ConfettiEffect(onAnimationFinished = { showConfetti = false })
+@Composable
+fun MathOperationBody(
+    operation: Operation,
+    num1: String,
+    num2: String,
+    displayLength: Int,
+    activeColumnIndex: Int,
+    num1Overrides: Map<Int, String> = emptyMap()
+) {
+    Column(horizontalAlignment = Alignment.End) {
+        DigitDisplayRow(
+            number = num1,
+            maxLength = displayLength,
+            activeDigitIndexFromRight = activeColumnIndex,
+            highlightColor = operation.color,
+            digitOverrides = num1Overrides
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width((displayLength * 60 + 40).dp)) {
+            Text(
+                text = operation.symbol,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                color = operation.color,
+                modifier = Modifier.width(40.dp),
+                textAlign = TextAlign.Center
+            )
+            DigitDisplayRow(
+                number = num2,
+                maxLength = displayLength,
+                activeDigitIndexFromRight = activeColumnIndex,
+                highlightColor = operation.color
+            )
         }
+        
+        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), thickness = 4.dp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -707,23 +776,15 @@ fun DigitDisplayRow(
             val indexFromRight = maxLength - 1 - index
             val isActive = indexFromRight == activeDigitIndexFromRight
             
-            Box(
-                modifier = Modifier.size(60.dp),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
                 if (char != ' ') {
                     val displayChar = digitOverrides[indexFromRight] ?: char.toString()
                     Text(
                         text = displayChar,
                         fontSize = if (displayChar.length > 1) 32.sp else 48.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isActive) highlightColor else MaterialTheme.colorScheme.onSurface
+                        color = if (isActive && highlightColor != Color.Unspecified) highlightColor else MaterialTheme.colorScheme.onSurface
                     )
-                    
-                    if (digitOverrides.containsKey(indexFromRight) && displayChar != char.toString()) {
-                        // Draw a strike-through or similar to show original value was changed
-                        // For now just showing the new value is a good start.
-                    }
                 }
             }
         }
@@ -737,75 +798,54 @@ fun AnswerInputArea(
     actualAnswerLength: Int,
     isCorrect: Boolean?,
     operationColor: Color,
-    inputMode: InputMode
+    inputMode: InputMode,
+    activeColumnIndex: Int = -1,
+    isFinished: Boolean = false
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "cursor")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
+    val alpha by rememberInfiniteTransition().animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(600, easing = LinearEasing), repeatMode = RepeatMode.Reverse)
     )
 
-    Row(
-        horizontalArrangement = Arrangement.End,
-        modifier = Modifier.padding(top = 8.dp)
-    ) {
+    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.padding(top = 8.dp)) {
         repeat(maxLength) { index ->
             val isPartOfAnswer = index >= (maxLength - actualAnswerLength)
-            
             if (isPartOfAnswer) {
                 val answerIndexFromRight = maxLength - 1 - index
-                
-                val charIndex = if (inputMode == InputMode.DIRECT) {
-                    val leftMostAnswerIndex = maxLength - actualAnswerLength
-                    index - leftMostAnswerIndex
-                } else {
-                    answerIndexFromRight
-                }
-                
+                val charIndex = if (inputMode == InputMode.DIRECT) index - (maxLength - actualAnswerLength) else answerIndexFromRight
                 val char = if (charIndex >= 0 && charIndex < userInput.length) userInput[charIndex].toString() else ""
                 
-                val isCurrent = if (inputMode == InputMode.DIRECT) {
-                    val currentInputIndex = index - (maxLength - actualAnswerLength)
-                    currentInputIndex == userInput.length
+                val isCurrent = if (activeColumnIndex != -1) {
+                    answerIndexFromRight == activeColumnIndex && !isFinished
                 } else {
-                    answerIndexFromRight == userInput.length
-                } && isCorrect == null
+                    (if (inputMode == InputMode.DIRECT) index - (maxLength - actualAnswerLength) else answerIndexFromRight) == userInput.length && isCorrect == null
+                }
+
+                val boxBorderColor = when {
+                    isFinished -> Color(0xFF4CAF50)
+                    isCorrect == false -> Color(0xFFF44336)
+                    isCurrent -> operationColor.copy(alpha = alpha)
+                    char.isNotEmpty() -> operationColor
+                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                }
+
+                val textColor = when {
+                    isFinished -> Color(0xFF4CAF50)
+                    isCorrect == false -> Color(0xFFF44336)
+                    isCurrent -> operationColor.copy(alpha = alpha)
+                    else -> operationColor
+                }
 
                 Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .padding(2.dp)
+                    modifier = Modifier.size(60.dp).padding(2.dp)
                         .background(
-                            color = if (isCurrent) operationColor.copy(alpha = 0.1f * alpha) else Color.Transparent,
+                            color = if (isCurrent) operationColor.copy(alpha = 0.1f * alpha) else Color.Transparent, 
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .border(
-                            width = 2.dp,
-                            color = when {
-                                isCorrect == true -> Color(0xFF4CAF50)
-                                isCorrect == false -> Color(0xFFF44336)
-                                isCurrent -> operationColor.copy(alpha = alpha)
-                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            },
-                            shape = RoundedCornerShape(8.dp)
-                        ),
+                        .border(width = 2.dp, color = boxBorderColor, shape = RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = char,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = when (isCorrect) {
-                            true -> Color(0xFF4CAF50)
-                            false -> Color(0xFFF44336)
-                            null -> operationColor
-                        }
-                    )
+                    Text(text = char, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = textColor)
                 }
             } else {
                 Spacer(modifier = Modifier.size(60.dp))
@@ -814,10 +854,63 @@ fun AnswerInputArea(
     }
 }
 
+@Preview @Composable fun GameScreenAdditionPreview() { LearningMathTheme { GameScreen(Operation.ADDITION, {}, {}, InputMode.DIRECT, {}) } }
+@Preview @Composable fun GameScreenSubtractionPreview() { LearningMathTheme { GameScreen(Operation.SUBTRACTION, {}, {}, InputMode.DIRECT, {}) } }
+@Preview @Composable fun GameScreenMultiplicationPreview() { LearningMathTheme { GameScreen(Operation.MULTIPLICATION, {}, {}, InputMode.DIRECT, {}) } }
+@Preview @Composable fun GameScreenDivisionPreview() { LearningMathTheme { GameScreen(Operation.DIVISION, {}, {}, InputMode.DIRECT, {}) } }
+
 @Preview
 @Composable
-fun GameScreenPreview() {
+fun GameScreenAdditionSolutionPreview() {
     LearningMathTheme {
-        GameScreen(Operation.ADDITION, {}, {}, InputMode.DIRECT, {})
+        GameSolutionContent(
+            operation = Operation.ADDITION, num1 = 45, num2 = 27, userInput = "27",
+            isSolutionFinished = true, solutionStep = 1,
+            solutionExplanations = listOf("5 + 7 = 12 eder.", "12'nin 2'sini yazıyoruz, 1 elde var.", "Elde olan 1'i onluklara ekliyoruz.", "4 + 2 = 6 eder, 1 de elde vardı, toplam 7 eder.", "Sonuç 72. Harikasın!"),
+            carries = mapOf(1 to 1), borrows = emptyMap(), num1Overrides = emptyMap(),
+            onBack = {}, onReplaySolution = {}, onNextQuestion = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun GameScreenSubtractionSolutionPreview() {
+    LearningMathTheme {
+        GameSolutionContent(
+            operation = Operation.SUBTRACTION, num1 = 52, num2 = 18, userInput = "43",
+            isSolutionFinished = true, solutionStep = 1,
+            solutionExplanations = listOf("2'den 8 çıkmaz, komşudan bir onluk alıyoruz.", "Komşuda 5 vardı, 4 kaldı.", "Bizim 2'miz ise 12 oldu.", "12 - 8 = 4 eder.", "4 - 1 = 3 eder.", "Sonuç 34. Harikasın!"),
+            carries = emptyMap(), borrows = mapOf(1 to true), num1Overrides = mapOf(0 to "12", 1 to "4"),
+            onBack = {}, onReplaySolution = {}, onNextQuestion = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun GameScreenMultiplicationSolutionPreview() {
+    LearningMathTheme {
+        GameSolutionContent(
+            operation = Operation.MULTIPLICATION, num1 = 4, num2 = 3, userInput = "21",
+            isSolutionFinished = true, solutionStep = 0,
+            solutionExplanations = listOf("4 tane 3'ü topluyoruz.", "➜ 3 = 3", "➜ 3 + 3 = 6", "➜ 3 + 3 + 3 = 9", "➜ 3 + 3 + 3 + 3 = 12", "Sonuç 12. Harikasın!"),
+            carries = emptyMap(), borrows = emptyMap(), num1Overrides = emptyMap(),
+            onBack = {}, onReplaySolution = {}, onNextQuestion = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun GameScreenDivisionSolutionPreview() {
+    LearningMathTheme {
+        GameSolutionContent(
+            operation = Operation.DIVISION, num1 = 12, num2 = 3, userInput = "4",
+            isSolutionFinished = true, solutionStep = 0,
+            solutionExplanations = listOf("12'nin içinde kaç tane 3 var sayalım.", "3, 6, 9, 12", "Tam 4 tane saydık.", "Sonuç 4. Harikasın!"),
+            carries = emptyMap(), borrows = emptyMap(), num1Overrides = emptyMap(),
+            onBack = {}, onReplaySolution = {}, onNextQuestion = {}
+        )
     }
 }

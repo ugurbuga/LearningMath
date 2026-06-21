@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import java.util.Locale
 
 actual class TextToSpeechHelper(private val tts: TextToSpeech?) {
@@ -19,6 +20,9 @@ actual class TextToSpeechHelper(private val tts: TextToSpeech?) {
 
 @Composable
 actual fun rememberTextToSpeechHelper(): TextToSpeechHelper {
+    if (LocalInspectionMode.current) {
+        return remember { TextToSpeechHelper(null) }
+    }
     val context = LocalContext.current
     val tts = remember {
         var ttsInstance: TextToSpeech? = null

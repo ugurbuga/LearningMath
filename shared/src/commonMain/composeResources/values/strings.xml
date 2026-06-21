@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Matematik Canavarı 👾</string>
+    <string name="app_name">Matematik Öğreniyorum</string>
     <string name="stats_title">Başarılarım 🏆</string>
     <string name="stats_title_today">Bugünkü Yıldızlarım ⭐</string>
     <string name="input_mode_title">Nasıl Yazalım?</string>
@@ -17,7 +17,7 @@
     <string name="op_multiplication">Çarpma</string>
     <string name="op_division">Bölme</string>
 
-    <string name="show_solution">Birlikte Çözelim mi? 💡</string>
+    <string name="show_solution">Birlikte Çözelim mi?</string>
     <string name="replay">Bir Daha Anlat</string>
     <string name="solution_step_add">➜ %1$d ile %2$d'yi toplarsak %3$d eder.</string>
     <string name="solution_carry_add">➜ Şimdi eldeyi ekliyoruz: %1$d + %2$d = %3$d</string>

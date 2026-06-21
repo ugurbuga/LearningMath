@@ -48,10 +48,13 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            implementation(libs.compose.ui.tooling)
+            implementation(libs.androidx.ui.tooling)
         }
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                implementation(libs.compose.ui.tooling)
             }
         }
     }
