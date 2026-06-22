@@ -25,6 +25,7 @@ compose-icons-extended = { group = "org.jetbrains.compose.material", name = "mat
 compose-components-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "compose-multiplatform" }
 compose-ui-tooling = { group = "org.jetbrains.compose.ui", name = "ui-tooling", version.ref = "compose-multiplatform" }
 compose-preview = { group = "org.jetbrains.compose.ui", name = "ui-tooling-preview", version.ref = "compose-multiplatform" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "compose-multiplatform" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -74,7 +74,7 @@ fun KeypadButton(text: String, modifier: Modifier = Modifier, onClick: () -> Uni
 
     Box(
         modifier = modifier
-            .aspectRatio(1.5f)
+            .aspectRatio(2f)
             .clip(RoundedCornerShape(16.dp))
             .background(buttonColor)
             .clickable { onClick() },
