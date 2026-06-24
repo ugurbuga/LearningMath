@@ -11,6 +11,10 @@
     <string name="correct_msg">Süpersin! Tam isabet! 🌟</string>
     <string name="wrong_msg">Küçük bir hata, tekrar dene! 💪</string>
     <string name="back">Geri Git</string>
+    <string name="delete">Sil</string>
+    <string name="check">Doğrula</string>
+    <string name="details">Detaylar</string>
+    <string name="plus_connector"> + </string>
 
     <string name="op_addition">Toplama</string>
     <string name="op_subtraction">Çıkarma</string>
@@ -29,6 +33,7 @@
     <string name="solution_borrow_add">➜ Komşudan gelen onluğu ekledik: %1$d + 10 = %2$d oldu!</string>
     <string name="solution_step_sub">➜ %1$d'den %2$d çıkarsa %3$d kalır.</string>
     <string name="solution_mul_explanation">➜ Bu işlem tam %1$d tane %2$d'yi toplamak gibi!</string>
+    <string name="solution_mul_step">➜ %1$s = %2$d</string>
     <string name="solution_div_explanation">➜ Bakalım %1$d'in içinde kaç tane %2$d gizlenmiş?</string>
     <string name="solution_div_counting">➜ %1$d'şer ritmik sayalım: %2$s</string>
     <string name="solution_div_result">➜ Yaşasın! Tam %1$d tane varmış!</string>

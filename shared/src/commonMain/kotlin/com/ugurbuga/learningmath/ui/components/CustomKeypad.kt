@@ -19,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.ugurbuga.learningmath.shared.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+
 @Composable
 fun CustomKeypad(
     onNumberClick: (String) -> Unit,
@@ -81,8 +84,8 @@ fun KeypadButton(text: String, modifier: Modifier = Modifier, onClick: () -> Uni
         contentAlignment = Alignment.Center
     ) {
         when (text) {
-            "del" -> Icon(Icons.Default.Delete, contentDescription = "Delete", tint = contentColor)
-            "tick" -> Icon(Icons.Default.Check, contentDescription = "Correct", tint = contentColor)
+            "del" -> Icon(Icons.Default.Delete, contentDescription = stringResource(Res.string.delete), tint = contentColor)
+            "tick" -> Icon(Icons.Default.Check, contentDescription = stringResource(Res.string.check), tint = contentColor)
             else -> Text(
                 text = text,
                 fontSize = 24.sp,

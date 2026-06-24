@@ -254,7 +254,9 @@ fun GameScreen(
                 repeat(num1) {
                     currentSum += num2
                     steps.add(num2.toString())
-                    addSolutionExplanation("➜ " + steps.joinToString(" + ") + " = $currentSum")
+                    val plusSeparator = getString(Res.string.plus_connector)
+                    val joinString = steps.joinToString(plusSeparator)
+                    addSolutionExplanation(getString(Res.string.solution_mul_step, joinString, currentSum))
                     userInput = currentSum.toString().reversed()
                 }
             }
@@ -554,6 +556,8 @@ fun SolutionExplanationCard(
         }
     }
 
+    val finishedMsg = stringResource(Res.string.solution_finished)
+
     Card(
         modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).padding(bottom = 16.dp),
         shape = RoundedCornerShape(16.dp),
@@ -567,7 +571,7 @@ fun SolutionExplanationCard(
         ) {
             explanations.forEachIndexed { index, line ->
                 val isLast = index == explanations.size - 1
-                val isSuccess = line.contains("Harikasın") || line.contains("great", ignoreCase = true)
+                val isSuccess = line == finishedMsg
                 Text(
                     text = line,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -866,7 +870,13 @@ fun GameScreenAdditionSolutionPreview() {
         GameSolutionContent(
             operation = Operation.ADDITION, num1 = 45, num2 = 27, userInput = "27",
             isSolutionFinished = true, solutionStep = 1,
-            solutionExplanations = listOf("5 + 7 = 12.", "We write 2 of 12, there is 1 carry.", "We add the carry of 1 to the tens.", "4 + 2 = 6, with 1 carry, total is 7.", "Result 72. You're great!"),
+            solutionExplanations = listOf(
+                "5 + 7 = 12.",
+                "We write 2 of 12, there is 1 carry.",
+                "We add the carry of 1 to the tens.",
+                "4 + 2 = 6, with 1 carry, total is 7.",
+                stringResource(Res.string.solution_finished)
+            ),
             carries = mapOf(1 to 1), borrows = emptyMap(), num1Overrides = emptyMap(),
             onBack = {}, onReplaySolution = {}, onNextQuestion = {}
         )
@@ -880,7 +890,14 @@ fun GameScreenSubtractionSolutionPreview() {
         GameSolutionContent(
             operation = Operation.SUBTRACTION, num1 = 52, num2 = 18, userInput = "43",
             isSolutionFinished = true, solutionStep = 1,
-            solutionExplanations = listOf("Cannot subtract 8 from 2, we borrow a ten from the neighbor.", "The neighbor had 5, now 4 is left.", "Our 2 becomes 12.", "12 - 8 = 4.", "4 - 1 = 3.", "Result 34. You're great!"),
+            solutionExplanations = listOf(
+                "Cannot subtract 8 from 2, we borrow a ten from the neighbor.",
+                "The neighbor had 5, now 4 is left.",
+                "Our 2 becomes 12.",
+                "12 - 8 = 4.",
+                "4 - 1 = 3.",
+                stringResource(Res.string.solution_finished)
+            ),
             carries = emptyMap(), borrows = mapOf(1 to true), num1Overrides = mapOf(0 to "12", 1 to "4"),
             onBack = {}, onReplaySolution = {}, onNextQuestion = {}
         )
@@ -894,7 +911,14 @@ fun GameScreenMultiplicationSolutionPreview() {
         GameSolutionContent(
             operation = Operation.MULTIPLICATION, num1 = 4, num2 = 3, userInput = "21",
             isSolutionFinished = true, solutionStep = 0,
-            solutionExplanations = listOf("We are adding 4 threes.", "➜ 3 = 3", "➜ 3 + 3 = 6", "➜ 3 + 3 + 3 = 9", "➜ 3 + 3 + 3 + 3 = 12", "Result 12. You're great!"),
+            solutionExplanations = listOf(
+                "We are adding 4 threes.",
+                "➜ 3 = 3",
+                "➜ 3 + 3 = 6",
+                "➜ 3 + 3 + 3 = 9",
+                "➜ 3 + 3 + 3 + 3 = 12",
+                stringResource(Res.string.solution_finished)
+            ),
             carries = emptyMap(), borrows = emptyMap(), num1Overrides = emptyMap(),
             onBack = {}, onReplaySolution = {}, onNextQuestion = {}
         )
@@ -908,7 +932,12 @@ fun GameScreenDivisionSolutionPreview() {
         GameSolutionContent(
             operation = Operation.DIVISION, num1 = 12, num2 = 3, userInput = "4",
             isSolutionFinished = true, solutionStep = 0,
-            solutionExplanations = listOf("Let's count how many 3s are in 12.", "3, 6, 9, 12", "We counted exactly 4.", "Result 4. You're great!"),
+            solutionExplanations = listOf(
+                "Let's count how many 3s are in 12.",
+                "3, 6, 9, 12",
+                "We counted exactly 4.",
+                stringResource(Res.string.solution_finished)
+            ),
             carries = emptyMap(), borrows = emptyMap(), num1Overrides = emptyMap(),
             onBack = {}, onReplaySolution = {}, onNextQuestion = {}
         )
