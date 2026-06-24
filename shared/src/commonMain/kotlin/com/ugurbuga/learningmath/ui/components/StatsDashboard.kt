@@ -56,7 +56,7 @@ fun StatsDashboard(
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Details",
+                    contentDescription = stringResource(Res.string.details),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
