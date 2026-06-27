@@ -28,7 +28,7 @@ actual fun rememberTextToSpeechHelper(): TextToSpeechHelper {
         var ttsInstance: TextToSpeech? = null
         ttsInstance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                ttsInstance?.language = Locale("tr", "TR")
+                ttsInstance?.language = Locale.getDefault()
             }
         }
         ttsInstance

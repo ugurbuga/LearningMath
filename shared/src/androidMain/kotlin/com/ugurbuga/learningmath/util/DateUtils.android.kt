@@ -6,9 +6,9 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 actual fun getDayOfWeekName(date: LocalDate): String {
-    return date.toJavaLocalDate().dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("tr"))
+    return date.toJavaLocalDate().dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
 }
 
 actual fun getMonthName(date: LocalDate): String {
-    return date.toJavaLocalDate().month.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("tr"))
+    return date.toJavaLocalDate().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
 }

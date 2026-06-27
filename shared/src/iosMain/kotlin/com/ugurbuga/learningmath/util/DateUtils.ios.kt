@@ -12,7 +12,7 @@ actual fun getDayOfWeekName(date: LocalDate): String {
     val nsDate = calendar.dateFromComponents(components) ?: return ""
     
     val formatter = NSDateFormatter()
-    formatter.setLocale(NSLocale.localeWithLocaleIdentifier("tr_TR"))
+    formatter.setLocale(NSLocale.currentLocale)
     formatter.setDateFormat("EEE")
     return formatter.stringFromDate(nsDate)
 }
@@ -26,7 +26,7 @@ actual fun getMonthName(date: LocalDate): String {
     val nsDate = calendar.dateFromComponents(components) ?: return ""
     
     val formatter = NSDateFormatter()
-    formatter.setLocale(NSLocale.localeWithLocaleIdentifier("tr_TR"))
+    formatter.setLocale(NSLocale.currentLocale)
     formatter.setDateFormat("MMM")
     return formatter.stringFromDate(nsDate)
 }
