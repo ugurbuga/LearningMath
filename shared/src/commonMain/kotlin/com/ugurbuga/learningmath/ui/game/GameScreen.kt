@@ -268,7 +268,8 @@ fun GameScreen(
                 while (remaining >= num2) {
                     count++
                     steps.add(num2 * count)
-                    addSolutionExplanation(getString(Res.string.solution_div_counting, num2, steps.joinToString(", ")))
+                    val listSeparator = getString(Res.string.list_separator)
+                    addSolutionExplanation(getString(Res.string.solution_div_counting, num2, steps.joinToString(listSeparator)))
                     userInput = count.toString().reversed()
                     remaining -= num2
                 }
@@ -720,7 +721,7 @@ fun CarryBorrowIndicators(
                     }
                 }
                 if (borrows.containsKey(indexFromRight)) {
-                    Text(text = "↘", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text(text = stringResource(Res.string.borrow_symbol), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red)
                 }
             }
         }
