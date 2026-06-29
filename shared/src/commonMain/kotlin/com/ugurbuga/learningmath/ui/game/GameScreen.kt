@@ -34,6 +34,7 @@ import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.tooling.preview.Preview
+import com.ugurbuga.learningmath.ui.theme.*
 import kotlin.random.Random
 
 private const val SHOW_SOLUTION_DELAY_SECONDS = 15
@@ -537,7 +538,7 @@ fun FeedbackMessage(isCorrect: Boolean?) {
                 text = if (isCorrect == true) stringResource(Res.string.correct_msg) else stringResource(Res.string.wrong_msg),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isCorrect == true) Color(0xFF4CAF50) else Color(0xFFF44336)
+                color = if (isCorrect == true) ColorCorrect else ColorWrong
             )
         }
     }
@@ -577,7 +578,7 @@ fun SolutionExplanationCard(
                     text = line,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = if (isLast || isSuccess) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSuccess) Color(0xFF4CAF50) else if (isLast) operation.color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                        color = if (isSuccess) ColorCorrect else if (isLast) operation.color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     ),
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -620,7 +621,7 @@ fun NextQuestionButton(onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.height(56.dp).fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+        colors = ButtonDefaults.buttonColors(containerColor = ColorCorrect)
     ) {
         Text(stringResource(Res.string.next_question), fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
@@ -708,20 +709,20 @@ fun CarryBorrowIndicators(
                     Surface(
                         modifier = Modifier.padding(bottom = 4.dp),
                         shape = RoundedCornerShape(50),
-                        color = Color(0xFFFFEB3B),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBC02D))
+                        color = ColorCarryBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ColorCarryBorder)
                     ) {
                         Text(
                             text = carries[indexFromRight].toString(),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFFD32F2F),
+                            color = ColorCarryText,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
                 if (borrows.containsKey(indexFromRight)) {
-                    Text(text = stringResource(Res.string.borrow_symbol), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text(text = stringResource(Res.string.borrow_symbol), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ColorBorrow)
                 }
             }
         }
@@ -827,16 +828,16 @@ fun AnswerInputArea(
                 }
 
                 val boxBorderColor = when {
-                    isFinished -> Color(0xFF4CAF50)
-                    isCorrect == false -> Color(0xFFF44336)
+                    isFinished -> ColorCorrect
+                    isCorrect == false -> ColorWrong
                     isCurrent -> operationColor.copy(alpha = alpha)
                     char.isNotEmpty() -> operationColor
                     else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 }
 
                 val textColor = when {
-                    isFinished -> Color(0xFF4CAF50)
-                    isCorrect == false -> Color(0xFFF44336)
+                    isFinished -> ColorCorrect
+                    isCorrect == false -> ColorWrong
                     isCurrent -> operationColor.copy(alpha = alpha)
                     else -> operationColor
                 }

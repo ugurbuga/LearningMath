@@ -22,6 +22,9 @@ import androidx.compose.ui.unit.sp
 import com.ugurbuga.learningmath.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
+import com.ugurbuga.learningmath.ui.theme.ColorCorrect
+import com.ugurbuga.learningmath.ui.theme.ColorWrong
+
 @Composable
 fun CustomKeypad(
     onNumberClick: (String) -> Unit,
@@ -65,8 +68,8 @@ fun CustomKeypad(
 @Composable
 fun KeypadButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val buttonColor = when (text) {
-        "tick" -> Color(0xFF4CAF50)
-        "del" -> Color(0xFFF44336)
+        "tick" -> ColorCorrect
+        "del" -> ColorWrong
         else -> MaterialTheme.colorScheme.secondaryContainer
     }
 
